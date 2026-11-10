@@ -3,7 +3,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, HTTPException, Request
 from telegram import Bot
 
 load_dotenv()
@@ -29,6 +29,12 @@ async def bot_get_me(request: Request):
 
 @app.post("/webhook")
 async def webhook(request: Request):
+    webhook_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET")
+    # Check if the secret token is present and matches the expected value
+    if not webhook_secret:
+        raise RuntimeError("Falta configurar TELEGRAM_WEBHOOK_SECRET en .env")
+    if request.headers.get("X-Telegram-Bot-Api-Secret-Token") != webhook_secret:
+       raise HTTPException(status_code=403, detail="Unauthorized")
     # Implement webhook logic here
     message = await request.json()
     # Process the incoming message and respond accordingly 
@@ -37,17 +43,20 @@ async def webhook(request: Request):
     else:
         if message.get("message"):
             message_text = message["message"].get("text")
+            #return {"status": "Message received", "message": message_text}
             if message_text:
                 chat_id = message["message"]["chat"]["id"]
                 if chat_id:
                     bot: Bot = request.app.state.bot
-                    await bot.send_message(chat_id=chat_id, text=f"Received your message: {message_text}")
-                    return {"status": "Message received", "message": message_text, "chat_id": chat_id}
+                    await bot.send_message(chat_id=chat_id, text=f"Received your message: {message_text} ; chat_id: {chat_id}")
+                    #return {"status": "Message received", "message": message_text, "chat_id": chat_id}
                     ##return {"status": "Message received", "message": message_text}
             else:
                 return {"status": "Message received but no text found"}
         else:
             return {"status": "Update received but no message found"}
+
+
 
 ##test de api
 @app.get("/")
