@@ -5,7 +5,7 @@ from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 from fastapi import FastAPI, Request
 from telegram import Bot
-from app.channels.telegram import validate_webhook_secret
+from app.channels.telegram import parse_telegram_message, validate_webhook_secret
 
 load_dotenv()
 
@@ -13,10 +13,11 @@ load_dotenv()
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     bot_token = os.getenv("telegram_bot_token")
     if not bot_token:
-        raise RuntimeError("Falta configurar telegram_bot_token en el entorno")
+        raise RuntimeError("Falta configurar telegram_bot_token en .env")
+
     webhook_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET")
     if not webhook_secret:
-        raise RuntimeError("Falta configurar TELEGRAM_WEBHOOK_SECRET en el entorno")
+        raise RuntimeError("Falta configurar TELEGRAM_WEBHOOK_SECRET en .env")
 
     async with Bot(token=bot_token) as bot:
         app.state.bot = bot
@@ -40,20 +41,31 @@ async def webhook(request: Request):
     )
     # Implement webhook logic here
     message = await request.json()
-    # Process the incoming message and respond accordingly 
-    if not message:
+
+    parsed_message = parse_telegram_message(message)
+
+    if not parsed_message:
         return {"status": "No message received"}
     else:
-        if message.get("message"):
-            message_text = message["message"].get("text")
-            if message_text:
-                chat_id = message["message"]["chat"]["id"]
-                if chat_id:
-                    bot: Bot = request.app.state.bot
-                    await bot.send_message(chat_id=chat_id, text=f"Received your message: {message_text} ; chat_id: {chat_id}")
-                    return {"status": "Message received", "message": message_text, "chat_id": chat_id}
+        # Process the parsed message and respond accordingly
+        if parsed_message.get("kind") == "text":
+            chat_id = parsed_message.get("chat_id") 
+            message_text = parsed_message.get("text") 
+            if chat_id is not None and message_text:
+                bot: Bot = request.app.state.bot
+                await bot.send_message(chat_id=chat_id, text=f"Received your message: {message_text} ; chat_id: {chat_id}")
+                return {"status": "Message received", "message": message_text, "chat_id": chat_id}
             else:
-                return {"status": "Message received but no text found"}
+                return {"status": "Message missing chat_id or text"}
+        elif parsed_message.get("kind") == "voice":
+            chat_id = parsed_message.get("chat_id") 
+            file_id = parsed_message.get("file_id")
+            if chat_id is not None and file_id:
+                bot: Bot = request.app.state.bot
+                await bot.send_message(chat_id=chat_id, text=f"Received your voice message with file_id: {file_id} ; chat_id: {chat_id}")
+                return {"status": "Voice message received", "file_id": file_id, "chat_id": chat_id}    
+            else:
+                return {"status": "Voice message missing chat_id or file_id"}       
         else:
             return {"status": "Update received but no message found"}
 
