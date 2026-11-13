@@ -2,3 +2,5 @@ fastapi
 python-dotenv
 python-telegram-bot
 uvicorn
+faster-whisper
+av<19

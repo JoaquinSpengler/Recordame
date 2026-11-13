@@ -1,13 +1,12 @@
 from faster_whisper import WhisperModel
 from pathlib import Path
+from typing import BinaryIO
+from app.services.transcription import get_transcription
 
-model = WhisperModel("base", device="cpu", compute_type="int8")
 
+model = WhisperModel("small", device="cpu", compute_type="int8")
 
-audio_path = str(Path("5165635421203335591.ogg"))
-segments, info = model.transcribe(audio_path, language="es")
+audio_path = Path(__file__).with_name("test.ogg")
 
-print("Archivo leído:", Path(audio_path).resolve())
-
-for segment in segments:
-    print(segment.text)
+with open(audio_path, "rb") as audio_file:
+    print(get_transcription(model, audio_file))
