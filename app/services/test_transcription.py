@@ -1,6 +1,5 @@
 from faster_whisper import WhisperModel
 from pathlib import Path
-from typing import BinaryIO
 from app.services.transcription import get_transcription
 
 

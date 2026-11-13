@@ -2,7 +2,7 @@ import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
-from fastapi import FastAPI, Request, APIRouter
+from fastapi import FastAPI, Request
 from telegram import Bot
 from faster_whisper import WhisperModel
 from app.routers.telegram import router as telegram_router
